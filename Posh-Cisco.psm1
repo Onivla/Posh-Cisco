@@ -31,17 +31,29 @@ function Get-CiscoSSHResponse
 		[PSCredential]$Credential,
 		[Parameter(Mandatory=$false)]
 		[Switch]$AcceptKey,
+		[Parameter(Mandatory=$false)]
+		[Switch]$TerminalLength0,
 		[Parameter(Mandatory=$true)]
 		[String]$Command,
 		[Parameter(Mandatory=$false)]
-		[String]$StripHeaderAt = $null
+		[String]$StripHeaderAt = $null,
+		[Parameter(Mandatory=$false)]
+		[Int]$TimeoutSeconds = 5,
+		[Parameter(Mandatory=$false)]
+		[Int]$SSHStreamBufferSize = 10000
     )
 
     $SSHSession = New-SSHSession -ComputerName $HostAddress -Port $HostPort -Credential $Credential -AcceptKey:$AcceptKey;
+	$SSHStreamSession = New-SSHShellStream -SessionId $SSHSession.SessionId -BufferSize $SSHStreamBufferSize
         
     if ($SSHSession.Connected)
     {
-        $SSHResponse = Invoke-SSHCommand -SSHSession $SSHSession -Command $Command;
+		if ($TerminalLength0)
+		{
+			$SSHResponse = Invoke-SSHStreamShellCommand -ShellStream $SSHStreamSession -Command "terminal length 0" -TimeoutSeconds $TimeoutSeconds;
+		}
+		
+        $SSHResponse = Invoke-SSHStreamShellCommand -ShellStream $SSHStreamSession -Command $Command -TimeoutSeconds $TimeoutSeconds;
     
         $SSHSessionRemoveResult = Remove-SSHSession -SSHSession $SSHSession;
 
@@ -50,7 +62,7 @@ function Get-CiscoSSHResponse
             Write-Error "Could not remove SSH Session $($SSHSession.SessionId):$($SSHSession.Host).";
         }
 
-        $Result = $SSHResponse.Output | Out-String;
+        $Result = $SSHResponse | Out-String;
 
         $StartIndex = 0;
 
@@ -90,7 +102,7 @@ function Get-CiscoStartupConfig
 		[Switch]$AcceptKey
     )
 
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show startup-config' -StripHeaderAt '!');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show startup-config' -StripHeaderAt '!');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -138,7 +150,7 @@ function Get-CiscoRunningConfig
         $Command = "$Command full";
     }
 
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command $Command -StripHeaderAt '!');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command $Command -StripHeaderAt '!');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -179,7 +191,7 @@ function Get-CiscoInterfaces
 		[Switch]$AcceptKey
     )
     
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show interfaces' -StripHeaderAt 'Vlan');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show interfaces' -StripHeaderAt 'Vlan');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -198,7 +210,7 @@ function Get-CiscoInterfacesStatus
 		[Switch]$AcceptKey
     )
     
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show interfaces status' -StripHeaderAt 'Port  ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show interfaces status' -StripHeaderAt 'Port  ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -217,7 +229,7 @@ function Get-CiscoLogging
 		[Switch]$AcceptKey
     )
 
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show logging' -StripHeaderAt 'Syslog ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show logging' -StripHeaderAt 'Syslog ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -236,7 +248,7 @@ function Get-CiscoLoggingOnboard
 		[Switch]$AcceptKey
     )
 
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show logging onboard' -StripHeaderAt 'PID: ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show logging onboard' -StripHeaderAt 'PID: ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -255,7 +267,7 @@ function Get-CiscoMacAddressTable
 		[Switch]$AcceptKey
     )
 
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show mac address-table' -StripHeaderAt 'Vlan ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show mac address-table' -StripHeaderAt 'Vlan ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -274,7 +286,7 @@ function Get-CiscoVersion
 		[Switch]$AcceptKey
     )
 
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show version' -StripHeaderAt 'Cisco IOS Software, ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show version' -StripHeaderAt 'Cisco IOS Software, ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -293,7 +305,7 @@ function Get-CiscoVlan
 		[Switch]$AcceptKey
     )
 
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command 'show vlan' -StripHeaderAt 'VLAN ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command 'show vlan' -StripHeaderAt 'VLAN ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -330,7 +342,7 @@ function Get-CiscoBridgeDomain
         $Command += " $BridgeDomainName";
     }
 	
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command $Command -StripHeaderAt 'Bridge-domain ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command $Command -StripHeaderAt 'Bridge-domain ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -361,7 +373,7 @@ function Get-CiscoArp
     }
 	
     # Get and return SSH response
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command $Command -StripHeaderAt 'Protocol ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command $Command -StripHeaderAt 'Protocol ');
 }
 
 # .ExternalHelp Posh-Cisco.psm1-Help.xml
@@ -392,5 +404,5 @@ function Get-CiscoIpArp
     }
 	
     # Get and return SSH response
-    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -Command $Command -StripHeaderAt 'Protocol ');
+    return (Get-CiscoSSHResponse -HostAddress $HostAddress -HostPort $HostPort -Credential $Credential -AcceptKey:$AcceptKey -TerminalLength0:$true -Command $Command -StripHeaderAt 'Protocol ');
 }
